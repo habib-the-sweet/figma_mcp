@@ -4,6 +4,7 @@
 import asyncio
 import json
 import logging
+import os
 import websockets
 from websockets.server import serve
 from typing import Dict, Set, Any
@@ -191,16 +192,21 @@ async def main():
         logging.getLogger().setLevel(logging.DEBUG)
     
     # Setup graceful shutdown
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     
     def signal_handler():
         logger.info("Received interrupt signal, shutting down...")
-        for client in clients.copy():
-            asyncio.create_task(client.close())
-        loop.stop()
-    
-    for sig in [signal.SIGINT, signal.SIGTERM]:
-        loop.add_signal_handler(sig, signal_handler)
+    for client in list(clients):
+        loop.create_task(client.close())
+    loop.call_soon_threadsafe(loop.stop)
+
+    for _sig in (getattr(signal, "SIGINT", None), getattr(signal, "SIGTERM", None)):
+        if _sig is None:
+            continue
+        try:
+            loop.add_signal_handler(_sig, signal_handler)  
+        except (NotImplementedError, RuntimeError):
+            signal.signal(_sig, lambda *_: loop.call_soon_threadsafe(signal_handler))
     
     logger.info(f"Starting WebSocket server on {args.host}:{args.port}")
     
