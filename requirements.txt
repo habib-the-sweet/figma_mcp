@@ -1,5 +1,5 @@
 fastmcp==2.4.0
-websockets==15.0.1
+websockets==13.1
 pydantic==2.11.5
 typing-extensions==4.13.2
 pytest==8.3.5
